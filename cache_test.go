@@ -2,6 +2,7 @@ package cache
 
 import (
 	"bytes"
+	"errors"
 	"io/ioutil"
 	"runtime"
 	"strconv"
@@ -65,6 +66,59 @@ func TestCache(t *testing.T) {
 		t.Error("x for c is nil")
 	} else if c2 := x.(float64); c2+1.2 != 4.7 {
 		t.Error("c2 (which should be 3.5) plus 1.2 does not equal 4.7; value:", c2)
+	}
+}
+
+func TestGetOrSet(t *testing.T) {
+	tc := New(DefaultExpiration, 0)
+
+	x, err := tc.GetOrSet("d", func() (interface{}, error) {
+		val := "ddd"
+		return &val, nil
+	}, NoExpiration)
+	if err != nil {
+		t.Error("cannot get d. error: ", err.Error())
+	}
+
+	if x == nil {
+		t.Error("x for d is nil")
+	} else if x2, ok := x.(*string); ok {
+		if *x2 != "ddd" {
+			t.Error("x2 is not correct value:", *x2)
+		}
+	} else {
+		t.Error("x2 is not string pointer")
+	}
+	_, found := tc.Get("d")
+	if !found {
+		t.Error("should found value for d")
+	}
+
+	_, err = tc.GetOrSet("d", func() (interface{}, error) {
+		return nil, errors.New("should not reach here")
+	}, NoExpiration)
+	if err != nil {
+		t.Error(err)
+	}
+	_, found = tc.Get("d")
+	if !found {
+		t.Error("should found value for d")
+	}
+
+	tc.Delete("d")
+	expectErr := errors.New("any errors are occurred")
+	x, err = tc.GetOrSet("d", func() (interface{}, error) {
+		return nil, expectErr
+	}, NoExpiration)
+	if err != expectErr {
+		t.Error(err)
+	}
+	if x != nil {
+		t.Error("should not get value for d")
+	}
+	_, found = tc.Get("d")
+	if found {
+		t.Error("should not found value for d")
 	}
 }
 

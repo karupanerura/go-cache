@@ -135,6 +135,27 @@ func (c *cache) Get(k string) (interface{}, bool) {
 	return item.Object, true
 }
 
+// GetOrSet makes atomic Get and Set a item.
+// When it succeeds to get a item from cache, it returns the item.
+// When it cannot get a item from cache, it calls callback function to get a item and cache.
+func (c *cache) GetOrSet(k string, cb func() (interface{}, error), d time.Duration) (interface{}, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	item, found := c.get(k)
+	if found {
+		return item, nil
+	}
+
+	item, err := cb()
+	if err != nil {
+		return nil, err
+	}
+
+	c.set(k, item, d)
+	return item, nil
+}
+
 // GetWithExpiration returns an item and its expiration time from the cache.
 // It returns the item or nil, the expiration time if one is set (if the item
 // never expires a zero value for time.Time is returned), and a bool indicating
